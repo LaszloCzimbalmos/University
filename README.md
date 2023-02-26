@@ -1,1 +1,1 @@
-# University
+# Egyetem
