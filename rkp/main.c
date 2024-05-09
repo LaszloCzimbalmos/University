@@ -1,49 +1,64 @@
-#include <stdio.h>
+#include "project.h"
 #include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <signal.h>
+#include <dirent.h>
+#include <ctype.h>
+#include<omp.h>
 
-void show_version()
-{
-    printf("Verzioszam: v0.02\n");
-    printf("Elkeszules datuma: 2024.04.12.\n");
-    printf("Fejleszto neve: Czimbalmos Laszlo\n");
-}
 
-void line()
-{
-    printf("----------------------------------\n");
-}
+int main(int argc, char *argv[]) {
+    srand(time(NULL));
 
-void show_help()
-{
-    line();
-    printf("Uzemmodok (parancssori argumentumkent megadva): \n");
-    printf("! Alapertelmezetten a rendszer kuldokent viselkedik !\n\n");
-    printf("[-send] - a rendszer kuldokent viselkedik\n");
-    printf("[-receive] - a rendszer fogadokent mukodik\n");
-    line();
-
-    printf("A kommunikacio modja: \n\n");
-    printf("! Alapertelmezetten a kommunikacio modja fajl !\n");
-    printf("[-file] - fajlt hasznal kommunikaciora\n");
-    printf("[-socket] - socketet hasznal kommunikaciora\n");
-    line();
-}
-
-int main(int argc, char* argv[])
-{
-    char* outName = argv[0];
-    char* arg = argv[1];
-
-    if (strcmp(outName, "./--version") == 0)
-    {
-        show_version();
-        exit(0);
+    if (strcmp(argv[0], "./chart") != 0) {
+        fprintf(stderr, "Nem chart a program neve!\n");
+        return EXIT_FAILURE;
     }
-    if (strcmp(outName, "./--help") == 0)
-    {
-        show_help();
-        exit(0);
+
+    int *values = NULL;
+    int size;
+
+    int operation_mode = 0;     
+    int communication_mode = 0; 
+
+    origin(&operation_mode, &communication_mode, argc, argv);
+
+    signal(SIGINT, SignalHandler);
+    signal(SIGUSR1, SignalHandler);
+
+    if (operation_mode < 0 || communication_mode < 0) {
+        return EXIT_FAILURE;
     }
-    
+
+    if (operation_mode == 0 && communication_mode == 0) {
+        size = Measurement(&values);
+        printf("Tömb kreáció...\n");
+        SendViaFile(values, size);
+        printf("Fájl átment\n");
+        free(values);
+        exit(0);
+    } else if (operation_mode == 0 && communication_mode == 1) { 
+        size = Measurement(&values);
+        printf("Tömb kreáció...\n");
+        SendViaSocket(values, size);
+        free(values);
+        exit(0);
+    } else if (operation_mode == 1 && communication_mode == 0) { 
+        while (1) {
+            signal(SIGUSR1, SignalHandler);
+            ReceiveViaFile(signal(SIGUSR1, SignalHandler));
+            ReceiveViaFile();
+            pause();
+        }
+    } else if (operation_mode == 1 && communication_mode == 1) { 
+        ReceiveViaSocket();
+    }
+
+    return EXIT_SUCCESS;
 }
+
